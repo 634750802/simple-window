@@ -47,7 +47,7 @@ export function RectWindowWrapper<R> ({ windowProps, windowKey, children, ref: f
     window.bind(el);
 
     return () => {
-      window.unbind();
+      window.destroy();
     };
   }, []);
 
@@ -68,6 +68,8 @@ function useWindowLayoutProp<K extends keyof RectLayout> (window: RectWindow<any
 
   useEffect(() => {
     if (window) {
+      setV(v => v + 1);
+
       const onLayoutChange = () => {
         setV(v => v + 1);
       };
