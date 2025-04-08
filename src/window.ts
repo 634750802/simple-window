@@ -108,12 +108,12 @@ export class RectWindowCollection<Props> extends EventEmitter<RectWindowCollecti
         this._layout.setConstraintRect(this.getDefaultConstraint());
       }
     }
-
   }
 
   watchWindowResize () {
-    if (this._watchWindowResize) {
+    if (!this._watchWindowResize) {
       window.addEventListener('resize', () => this.triggerConstraintElementUpdate(), { passive: true });
+      this._watchWindowResize = true;
     }
   }
 
