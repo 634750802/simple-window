@@ -1,0 +1,70 @@
+[data-rect] {
+  pointer-events: auto;
+}
+
+[data-rect-draggable-handler][data-rect-move=allow] {
+  cursor: move;
+}
+
+[data-rect-draggable-handler][data-rect-move=disallow] {
+  pointer-events: none;
+}
+
+[data-rect-draggable-handler][data-rect-move=disallow] > * {
+  pointer-events: auto;
+}
+
+[data-rect-draggable-edge="left"] {
+  cursor: col-resize;
+  position: absolute;
+  left: -2px;
+  top: 32px;
+  height: calc(100% - 32px - 2px);
+  width: 4px;
+}
+
+[data-rect-draggable-edge="right"] {
+  cursor: col-resize;
+  position: absolute;
+  right: -2px;
+  top: 32px;
+  height: calc(100% - 32px - 2px);
+  width: 4px;
+}
+
+[data-rect-draggable-edge="bottom"] {
+  cursor: row-resize;
+  position: absolute;
+  bottom: -2px;
+  left: 2px;
+  height: 4px;
+  width: calc(100% - 4px);
+}
+
+[data-rect-draggable-corner="bottom-left"] {
+  cursor: nesw-resize;
+  position: absolute;
+  bottom: -2px;
+  left: -2px;
+  height: 4px;
+  width: 4px;
+}
+
+[data-rect-draggable-corner="bottom-right"] {
+  cursor: nwse-resize;
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  height: 4px;
+  width: 4px;
+}
+
+[data-rect][data-dragging], [data-rect][data-resizing] {
+  pointer-events: none;
+}
+
+
+[data-rect][data-dragging] [data-dragging],
+[data-rect][data-resizing] [data-dragging] {
+  pointer-events: auto;
+}

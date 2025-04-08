@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Document</title>
+  <link rel="stylesheet" type="text/css" href="/style.css">
+  <style>
+    html, body {
+      margin: 0;
+    }
+
+    #constraint {
+      position: fixed;
+      left: calc(50% - 200px);
+      top: calc(50% - 200px);
+      width: 400px;
+      height: 400px;
+      background-color: yellow;
+      opacity: 0.1;
+    }
+
+    [data-rect] {
+      width: 100px;
+      height: 100px;
+      background-color: red;
+    }
+
+    [data-rect-draggable-handler] {
+      background-color: green;
+      height: 32px;
+      width: 100%;
+    }
+
+    [data-rect-draggable-edge="left"] {
+      background-color: blue;
+      opacity: 0.5;
+    }
+
+    [data-rect-draggable-edge="right"] {
+      background-color: blue;
+      opacity: 0.5;
+    }
+
+    [data-rect-draggable-edge="bottom"] {
+      background-color: blue;
+      opacity: 0.5;
+    }
+
+    [data-rect-draggable-corner="bottom-left"] {
+      background-color: deepskyblue;
+      opacity: 0.5;
+    }
+
+    [data-rect-draggable-corner="bottom-right"] {
+      background-color: deepskyblue;
+      opacity: 0.5;
+    }
+
+    [data-rect][data-dragging], [data-rect][data-resizing] {
+      pointer-events: none;
+    }
+
+
+    [data-rect][data-dragging] [data-dragging],
+    [data-rect][data-resizing] [data-dragging] {
+      pointer-events: auto;
+    }
+  </style>
+</head>
+<body>
+<script type="module" src="/dev.ts"></script>
+<button id='add'>add</button>
+<button id='layout-switch'>switch layout</button>
+<div id='constraint'></div>
+</body>
+</html>
