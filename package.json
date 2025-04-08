@@ -1,7 +1,7 @@
 {
   "name": "simple-window",
   "type": "module",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "",
   "scripts": {
     "dev": "vite",
@@ -26,7 +26,8 @@
     "./react": {
       "default": "./dist/react.js",
       "types": "./dist/react.d.ts"
-    }
+    },
+    "./style.css": "./style.css"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
