@@ -71,10 +71,11 @@ function useWindowLayoutProp<K extends keyof RectLayout> (window: RectWindow<any
       const onLayoutChange = () => {
         setV(v => v + 1);
       };
-      window.on('update:layout', onLayoutChange);
-
+      window.parent.on('update:layout', onLayoutChange);
+      window.on('layout', onLayoutChange);
       return () => {
-        window.off('update:layout', onLayoutChange);
+        window.off('layout', onLayoutChange);
+        window.parent.off('update:layout', onLayoutChange);
       };
     }
   }, [window]);

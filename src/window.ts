@@ -69,27 +69,6 @@ export class RectWindowCollection<Props> extends EventEmitter<RectWindowCollecti
     return this._constraintElement;
   }
 
-  transfer (window: RectWindow<Props>, target: RectWindowCollection<Props>) {
-    if (target === this) {
-      return;
-    }
-    if (!this.windows.has(window.id)) {
-      console.warn('window not owned by this collection');
-      return;
-    }
-    this.windows.delete(window.id);
-    this.windowsPriority = this.windowsPriority.filter(item => item !== window);
-    this.notifyPriorityChanges();
-    this.emit('window:remove', window);
-
-    window._transferTo(target);
-
-    target.windows.set(window.key ?? window.id, window);
-    target.windowsPriority.push(window);
-    target.notifyPriorityChanges();
-    target.emit('window:add', window);
-  }
-
   getDefaultConstraint (padding: Edges = this.defaultConstraintPadding) {
     return makeRect({
       x: padding.left,
@@ -203,6 +182,7 @@ export interface RectWindowCollectionEventsMap<Props> {
   'drag:end': [];
   'destroy': [];
   'tap': [];
+  'layout': [];
   'resize:left:start': [];
   'resize:left:move': [Vector2, Vector2];
   'resize:left:end': [];
@@ -227,7 +207,7 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
   private _layout: RectLayout | undefined;
 
   constructor (
-    private parent: RectWindowCollection<Props>,
+    readonly parent: RectWindowCollection<Props>,
     readonly id: number,
     readonly key: string | undefined,
     public rect: Rect,
@@ -235,11 +215,6 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
   ) {
     super();
     this._layout = undefined;
-  }
-
-  _transferTo (collection: RectWindowCollection<Props>) {
-    this.parent = collection;
-    this.onReLayout();
   }
 
   setLayout (layout: RectLayout | undefined) {
@@ -292,11 +267,13 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
   onLayoutChange () {
     this.rect = this.layout.fitRect(this.rect);
     this.flush();
+    this.emit('layout');
   }
 
   onReLayout (suggestedRect?: Rect | undefined | null) {
     this.rect = suggestedRect ? this.layout.fitRect(suggestedRect) : this.layout.initializeRect(this.id);
     this.flush();
+    this.emit('layout');
   }
 
   destroy () {
