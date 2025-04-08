@@ -15,11 +15,7 @@ export function useRectWindows<R> () {
 }
 
 export function useRectWindow<R> () {
-  const window = use(RectWindowContext);
-  if (!window) {
-    throw new Error('not in RectWindowContext');
-  }
-  return window;
+  return use(RectWindowContext);
 }
 
 export function RectWindows<R> ({ children }: { children: ReactNode }) {

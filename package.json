@@ -1,7 +1,7 @@
 {
   "name": "simple-window",
   "type": "module",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "",
   "scripts": {
     "dev": "vite",
@@ -15,7 +15,8 @@
     "vite": "^6.2.4"
   },
   "files": [
-    "dist"
+    "dist",
+    "style.css"
   ],
   "exports": {
     ".": {
