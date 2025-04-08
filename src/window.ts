@@ -338,6 +338,7 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
           () => {
             el.dataset.dragging = 'true';
             this.emit('drag:start');
+            this.emit('tap');
             start = this.rect;
           },
           (offset, delta) => {
