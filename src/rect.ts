@@ -30,6 +30,15 @@ export function makeRect (rect: Rect): Rect {
   return Object.freeze({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
 }
 
+export function padding (rect: Rect, padding: Edges): Rect {
+  return makeRect({
+    x: rect.x + padding.left,
+    y: rect.y + padding.top,
+    width: rect.width - padding.left - padding.right,
+    height: rect.height - padding.top - padding.bottom,
+  });
+}
+
 export function makeEdge (edges: Edges): Edges {
   return Object.freeze({ left: edges.left, top: edges.top, right: edges.right, bottom: edges.bottom });
 }

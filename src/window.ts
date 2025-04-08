@@ -2,7 +2,7 @@ import { EventEmitter } from 'eventemitter3';
 import { bindDraggable, type DraggableTarget, type IDisposable } from './draggable.js';
 import type { RectLayout } from './layouts/base.js';
 import { isConstraintLayout } from './layouts/constraint.js';
-import { type Edges, makeEdge, makeRect, type Rect, type Vector2 } from './rect.js';
+import { type Edges, makeEdge, makeRect, padding, type Rect, type Vector2 } from './rect.js';
 import { getRequiredElement } from './utils.js';
 
 export interface NewWindowOptions<Props> {
@@ -27,7 +27,7 @@ export interface RectWindowCollectionEventsMap<Props> {
 export class RectWindowCollection<Props> extends EventEmitter<RectWindowCollectionEventsMap<Props>> {
   private readonly windows: Map<number | string, RectWindow<Props>> = new Map();
   private windowsPriority: RectWindow<Props>[] = [];
-  private defaultConstraintPadding: Edges;
+  public defaultConstraintPadding: Edges;
   readonly zIndexBase: number;
   private _layout: RectLayout;
 
@@ -62,7 +62,7 @@ export class RectWindowCollection<Props> extends EventEmitter<RectWindowCollecti
     this._layout.removeAllListeners();
     this._layout = layout;
     if (isConstraintLayout(layout) && this._constraintElement) {
-      layout.setConstraintRect(makeRect(this._constraintElement.getBoundingClientRect()), true);
+      layout.setConstraintRect(padding(this._constraintElement.getBoundingClientRect(), this.defaultConstraintPadding), true);
     }
     this.emit('update:layout', layout);
   }
@@ -71,13 +71,13 @@ export class RectWindowCollection<Props> extends EventEmitter<RectWindowCollecti
     return this._constraintElement;
   }
 
-  getDefaultConstraint (padding: Edges = this.defaultConstraintPadding) {
-    return makeRect({
-      x: padding.left,
-      y: padding.top,
-      width: window.innerWidth - padding.left - padding.right,
-      height: window.innerHeight - padding.top - padding.bottom,
-    });
+  getDefaultConstraint (edgePadding: Edges = this.defaultConstraintPadding) {
+    return padding({
+      x: 0,
+      y: 0,
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }, edgePadding);
   }
 
   newWindow ({ key, rect, props }: NewWindowOptions<Props>) {
@@ -103,7 +103,7 @@ export class RectWindowCollection<Props> extends EventEmitter<RectWindowCollecti
   triggerConstraintElementUpdate () {
     if (isConstraintLayout(this._layout)) {
       if (this._constraintElement) {
-        this._layout.setConstraintRect(makeRect(this._constraintElement.getBoundingClientRect()));
+        this._layout.setConstraintRect(padding(this._constraintElement.getBoundingClientRect(), this.defaultConstraintPadding));
       } else {
         this._layout.setConstraintRect(this.getDefaultConstraint());
       }

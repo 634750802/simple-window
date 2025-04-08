@@ -149,7 +149,6 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
   }
 
   fitRect ({ x, y, width, height }: Rect): Rect {
-    console.log('fit')
     const { left, top, bottom, right, width: cWidth, height: cHeight } = this._constraint;
 
     if (width > cWidth) {
