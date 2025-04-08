@@ -168,10 +168,11 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
   }
 
   initializeRect (id: number): Rect {
+    const width = Math.max(Math.min(this._sizeConstraints.suggestionWidth ?? this._sizeConstraints.minWidth, this._sizeConstraints.maxWidth), this._sizeConstraints.minWidth);
     return this.fitRect({
-      x: this._constraint.right - 32 * id,
-      y: this._constraint.top - 32 * id,
-      width: Math.max(Math.min(this._sizeConstraints.suggestionWidth ?? this._sizeConstraints.minWidth, this._sizeConstraints.maxWidth), this._sizeConstraints.minWidth),
+      x: this._constraint.right - 32 * id - width,
+      y: this._constraint.top + 32 * id,
+      width,
       height: Math.max(Math.min(this._sizeConstraints.suggestionHeight ?? this._sizeConstraints.minHeight, this._sizeConstraints.maxHeight), this._sizeConstraints.minHeight),
     });
   }
