@@ -1,7 +1,7 @@
 {
   "name": "simple-window",
   "type": "module",
-  "version": "0.0.7",
+  "version": "0.0.9",
   "description": "",
   "scripts": {
     "dev": "vite",

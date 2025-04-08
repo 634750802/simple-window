@@ -67,9 +67,9 @@ function useWindowLayoutProp<K extends keyof RectLayout> (window: RectWindow<any
   const [, setV] = useState(0);
 
   useEffect(() => {
-    if (window) {
-      setV(v => v + 1);
+    setV(v => v + 1);
 
+    if (window) {
       const onLayoutChange = () => {
         setV(v => v + 1);
       };
@@ -85,7 +85,7 @@ function useWindowLayoutProp<K extends keyof RectLayout> (window: RectWindow<any
   return window?.layout[prop];
 }
 
-export function RectWindowHeader ({ window, children, ...props }: { window?: RectWindow<any> | null } & ComponentProps<'div'>) {
+export function RectWindowHeader ({ window, children, ...props }: { window: RectWindow<any> | null } & ComponentProps<'div'>) {
   const allowMove = useWindowLayoutProp(window, 'allowMove');
 
   return (

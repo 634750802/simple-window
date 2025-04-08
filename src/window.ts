@@ -232,9 +232,7 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
       nextLayout.renderTransitionProperties(el.style);
 
       const onTransitionEndOrCanceled = () => {
-        if (nextLayout.allowTransitions) {
-          nextLayout.renderTransitionProperties(el.style);
-        } else {
+        if (!nextLayout.allowTransitions) {
           el.style.transition = '';
         }
         el.removeEventListener?.('transitioncancel', onTransitionEndOrCanceled);
