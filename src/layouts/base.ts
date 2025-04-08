@@ -25,7 +25,7 @@ export class RectLayout extends EventEmitter<RectLayoutEventsMap> {
   allowMove = true;
   allowResize = true;
   allowTransitions = false;
-  allowRestore = true;
+  allowRestore = false;
 
   readonly restoredRects: WeakMap<RectWindow<any>, Rect> = new Map();
 

@@ -1,4 +1,4 @@
-import { type ComponentProps, createContext, type ReactNode, use, useEffect, useRef, useState } from 'react';
+import { type ComponentProps, type ComponentPropsWithoutRef, createContext, type ReactNode, type Ref, use, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { RectLayout } from './layouts/base.js';
 import { RectWindow, RectWindowCollection } from './window.js';
 
@@ -35,7 +35,7 @@ export function RectWindows<R> ({ children }: { children: ReactNode }) {
   );
 }
 
-export function RectWindowWrapper<R> ({ windowKey, children, ...props }: { windowKey?: string, children: ReactNode } & R) {
+export function RectWindowWrapper<R> ({ windowProps, windowKey, children, ref: forwardedRef, ...props }: { windowProps: R, windowKey?: string, ref?: Ref<RectWindow<R> | null>, children: ReactNode } & ComponentPropsWithoutRef<'div'>) {
   const ref = useRef<HTMLDivElement>(null);
   const collection = useRectWindows<R>();
   const [window, setWindow] = useState<RectWindow<R> | null>(null);
@@ -44,7 +44,7 @@ export function RectWindowWrapper<R> ({ windowKey, children, ...props }: { windo
     const el = ref.current!;
     const window = collection.newWindow({
       key: windowKey,
-      props,
+      props: windowProps,
     });
 
     setWindow(window);
@@ -55,9 +55,11 @@ export function RectWindowWrapper<R> ({ windowKey, children, ...props }: { windo
     };
   }, []);
 
+  useImperativeHandle<RectWindow<R> | null, RectWindow<R> | null>(forwardedRef, () => window, [window]);
+
   return (
     <RectWindowContext value={window}>
-      <div ref={ref}>
+      <div ref={ref} {...props}>
         {children}
         <RectWindowResizeHandlers window={window} />
       </div>
