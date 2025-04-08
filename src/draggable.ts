@@ -49,10 +49,6 @@ export function bindDraggable (
       return;
     }
 
-    if (event.target !== target) {
-      return;
-    }
-
     if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
       return;
     }

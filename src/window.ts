@@ -34,6 +34,8 @@ export class RectWindowCollection<Props> extends EventEmitter<RectWindowCollecti
   private _constraintElement: Element | null = null;
   private _constraintElementResizeObserver: ResizeObserver | null = null;
 
+  private _watchWindowResize = false;
+
   constructor ({
     defaultConstraintPadding = makeEdge({ left: 8, right: 8, top: 8, bottom: 8 }),
     zIndexBase = 20,
@@ -95,8 +97,6 @@ export class RectWindowCollection<Props> extends EventEmitter<RectWindowCollecti
       this.notifyPriorityChanges();
     });
 
-    const layout = this.layout;
-
     return window;
   }
 
@@ -112,7 +112,9 @@ export class RectWindowCollection<Props> extends EventEmitter<RectWindowCollecti
   }
 
   watchWindowResize () {
-    window.addEventListener('resize', () => this.triggerConstraintElementUpdate(), { passive: true });
+    if (this._watchWindowResize) {
+      window.addEventListener('resize', () => this.triggerConstraintElementUpdate(), { passive: true });
+    }
   }
 
   bindConstraintElement (element: Element) {

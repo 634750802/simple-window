@@ -1,4 +1,4 @@
-import { cloneMutableEdges, cloneMutableRect, type Edges, type Rect, type SizeConstraints, type Vector2 } from '../rect.js';
+import { cloneMutableEdges, type Edges, type Rect, type SizeConstraints, type Vector2 } from '../rect.js';
 import { RectLayout } from './base.js';
 
 export interface IConstraintRectLayout {
@@ -168,19 +168,11 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
   }
 
   initializeRect (id: number): Rect {
-    let rect = cloneMutableRect(super.initializeRect(id));
-
-    rect.x += this._constraint.left;
-    rect.y += this._constraint.top;
-    rect.width = Math.max(Math.min(rect.width, this._sizeConstraints.suggestionWidth || this._sizeConstraints.maxWidth), this._sizeConstraints.minWidth);
-    rect.height = Math.max(Math.min(rect.height, this._sizeConstraints.suggestionHeight || this._sizeConstraints.maxHeight), this._sizeConstraints.minHeight);
-
-    const r = this.move(
-      rect,
-      { x: this._constraint.left, y: this._constraint.top },
-      { x: 1, y: 1 },
-    );
-
-    return r;
+    return this.fitRect({
+      x: this._constraint.right - 32 * id,
+      y: this._constraint.top - 32 * id,
+      width: Math.max(Math.min(this._sizeConstraints.suggestionWidth ?? this._sizeConstraints.minWidth, this._sizeConstraints.maxWidth), this._sizeConstraints.minWidth),
+      height: Math.max(Math.min(this._sizeConstraints.suggestionHeight ?? this._sizeConstraints.minHeight, this._sizeConstraints.maxHeight), this._sizeConstraints.minHeight),
+    });
   }
 }

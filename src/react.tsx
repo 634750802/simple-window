@@ -1,6 +1,6 @@
-import { type ComponentProps, type ComponentPropsWithoutRef, createContext, type ReactNode, type Ref, use, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { type ComponentProps, type ComponentPropsWithoutRef, createContext, type ReactNode, type Ref, use, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 import { RectLayout } from './layouts/base.js';
-import { RectWindow, RectWindowCollection } from './window.js';
+import { RectWindow, RectWindowCollection, type RectWindowCollectionOptions } from './window.js';
 
 const RectWindowsContext = createContext<RectWindowCollection<any> | null>(null);
 const RectWindowContext = createContext<RectWindow<any> | null>(null);
@@ -18,11 +18,12 @@ export function useRectWindow<R> () {
   return use(RectWindowContext);
 }
 
-export function RectWindows<R> ({ children }: { children: ReactNode }) {
-  const [collection] = useState(() => new RectWindowCollection({
-    layout: new RectLayout(),
-    defaultConstraintPadding: { left: 0, right: 0, top: 0, bottom: 0 },
-  }));
+export function RectWindows<R> ({ defaultConstraintPadding, zIndexBase, layout, children }: { zIndexBase?: number, children: ReactNode } & Pick<RectWindowCollectionOptions<R>, 'defaultConstraintPadding' | 'layout' | 'zIndexBase'>) {
+  const [collection] = useState(() => new RectWindowCollection({ defaultConstraintPadding, zIndexBase, layout }));
+
+  useLayoutEffect(() => {
+    collection.watchWindowResize();
+  }, [])
 
   return (
     <RectWindowsContext value={collection}>
