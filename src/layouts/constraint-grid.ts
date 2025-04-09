@@ -1,5 +1,5 @@
 import type { Edges, Rect, SizeConstraints, Vector2 } from '../rect.js';
-import { ConstraintRectLayout } from './constraint.js';
+import { ConstraintRectLayout, getConstraintRect, type WindowLike } from './constraint.js';
 
 export interface GridConstraints {
   minCols: number;
@@ -11,6 +11,7 @@ export interface GridConstraints {
 }
 
 export class ConstraintGridRectLayout extends ConstraintRectLayout {
+  allowTransitions = true;
   _cols: number;
   _rows: number;
   _colWidth: number;
@@ -20,7 +21,7 @@ export class ConstraintGridRectLayout extends ConstraintRectLayout {
   constructor (
     rows: number,
     cols: number,
-    constraintRect: Rect,
+    constraintRect: Rect | Element | WindowLike,
     { minCols = 1, maxCols = Number.MAX_SAFE_INTEGER, minRows = 1, maxRows = Number.MAX_SAFE_INTEGER, suggestionCols, suggestionRows }: {
       minCols?: number,
       maxCols?: number,
@@ -38,11 +39,13 @@ export class ConstraintGridRectLayout extends ConstraintRectLayout {
       maxWidth: maxCols, maxHeight: maxRows,
       suggestionHeight: suggestionRows, suggestionWidth: suggestionCols,
     });
+    const rect = getConstraintRect(constraintRect);
     this._cols = cols;
     this._rows = rows;
-    this._colWidth = constraintRect.width / cols;
-    this._rowHeight = constraintRect.height / rows;
-    this._constraintRectInPixels = constraintRect;
+    this._colWidth = rect.width / cols;
+    this._rowHeight = rect.height / rows;
+    this._constraintRectInPixels = rect;
+    this.autoBind(constraintRect);
   }
 
   /**

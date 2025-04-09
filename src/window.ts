@@ -1,153 +1,9 @@
 import { EventEmitter } from 'eventemitter3';
 import { bindDraggable, type DraggableTarget, type IDisposable } from './draggable.js';
 import type { RectLayout } from './layouts/base.js';
-import { isConstraintLayout } from './layouts/constraint.js';
-import { type Edges, makeEdge, makeRect, padding, type Rect, type Vector2 } from './rect.js';
+import { type Edges, type Rect, type Vector2 } from './rect.js';
 import { getRequiredElement } from './utils.js';
-
-export interface NewWindowOptions<Props> {
-  key?: string;
-  rect?: Rect;
-  props: Props;
-}
-
-export interface RectWindowCollectionOptions<Props> {
-  defaultConstraintPadding: Edges;
-  zIndexBase?: number;
-  layout: RectLayout;
-}
-
-export interface RectWindowCollectionEventsMap<Props> {
-  'window:new': [RectWindow<Props>, id: number, key: string | undefined];
-  'window:add': [RectWindow<Props>];
-  'window:remove': [RectWindow<Props>];
-  'update:layout': [RectLayout];
-}
-
-export class RectWindowCollection<Props> extends EventEmitter<RectWindowCollectionEventsMap<Props>> {
-  private readonly windows: Map<number | string, RectWindow<Props>> = new Map();
-  private windowsPriority: RectWindow<Props>[] = [];
-  public defaultConstraintPadding: Edges;
-  readonly zIndexBase: number;
-  private _layout: RectLayout;
-
-  private _constraintElement: Element | null = null;
-  private _constraintElementResizeObserver: ResizeObserver | null = null;
-
-  private _watchWindowResize = false;
-
-  constructor ({
-    defaultConstraintPadding = makeEdge({ left: 8, right: 8, top: 8, bottom: 8 }),
-    zIndexBase = 20,
-    layout,
-  }: RectWindowCollectionOptions<Props>) {
-    super();
-    this.defaultConstraintPadding = defaultConstraintPadding;
-    this.zIndexBase = zIndexBase;
-    this._layout = layout;
-    if (isConstraintLayout(layout)) {
-      layout.setConstraintRect(this.getDefaultConstraint(), true);
-    }
-  }
-
-  getWindow (idOrKey: number | string): RectWindow<Props> | undefined {
-    return this.windows.get(idOrKey);
-  }
-
-  get layout (): RectLayout {
-    return this._layout;
-  }
-
-  set layout (layout: RectLayout) {
-    this._layout.removeAllListeners();
-    this._layout = layout;
-    if (isConstraintLayout(layout) && this._constraintElement) {
-      layout.setConstraintRect(padding(this._constraintElement.getBoundingClientRect(), this.defaultConstraintPadding), true);
-    }
-    this.emit('update:layout', layout);
-  }
-
-  get constraintElement (): Element | null {
-    return this._constraintElement;
-  }
-
-  getDefaultConstraint (edgePadding: Edges = this.defaultConstraintPadding) {
-    return padding({
-      x: 0,
-      y: 0,
-      width: window.innerWidth,
-      height: window.innerHeight,
-    }, edgePadding);
-  }
-
-  newWindow ({ key, rect, props }: NewWindowOptions<Props>) {
-    const id = this.windowsPriority.reduce((id, w) => Math.max(w.id, id), -1) + 1;
-    const window = new RectWindow(this, id, key, rect ?? makeRect(this.layout.initializeRect(id)), props);
-    this.windows.set(key || id, window);
-    this.windowsPriority.push(window);
-    window.initialize();
-    window.once('destroy', () => {
-      this.windows.delete(key || id);
-      this.windowsPriority = this.windowsPriority.filter(item => window !== item);
-      this.notifyPriorityChanges();
-    });
-
-    window.on('tap', () => {
-      this.windowsPriority = this.windowsPriority.filter(item => item !== window).concat(window);
-      this.notifyPriorityChanges();
-    });
-
-    return window;
-  }
-
-  triggerConstraintElementUpdate () {
-    if (isConstraintLayout(this._layout)) {
-      if (this._constraintElement) {
-        this._layout.setConstraintRect(padding(this._constraintElement.getBoundingClientRect(), this.defaultConstraintPadding));
-      } else {
-        this._layout.setConstraintRect(this.getDefaultConstraint());
-      }
-    }
-  }
-
-  watchWindowResize () {
-    if (!this._watchWindowResize) {
-      window.addEventListener('resize', () => this.triggerConstraintElementUpdate(), { passive: true });
-      this._watchWindowResize = true;
-    }
-  }
-
-  bindConstraintElement (element: Element) {
-    if (this._constraintElement) {
-      this.unbindConstraintElement(false);
-    }
-
-    this._constraintElement = element;
-    const ro = this._constraintElementResizeObserver = new ResizeObserver(() => {
-      this.triggerConstraintElementUpdate();
-    });
-    ro.observe(element);
-
-    this.triggerConstraintElementUpdate();
-  }
-
-  unbindConstraintElement (updateConstraint = true) {
-    if (this._constraintElement) {
-      this._constraintElementResizeObserver?.disconnect();
-      this._constraintElementResizeObserver = null;
-      this._constraintElement = null;
-      if (updateConstraint) {
-        if (isConstraintLayout(this._layout)) {
-          this._layout.setConstraintRect(this.getDefaultConstraint(), true);
-        }
-      }
-    }
-  }
-
-  notifyPriorityChanges () {
-    this.windowsPriority.forEach((window, index) => window.notifyPriorityChange(index + 1));
-  }
-}
+import type { RectWindowCollection } from './windows.js';
 
 type RectWindowVirtualBoundDOMElementEventsMap = {
   touchstart: TouchEvent;
@@ -219,16 +75,19 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
     this._layout = undefined;
   }
 
-  setLayout (layout: RectLayout | undefined) {
-    const rect = this.rect;
-    const previousLayout = this.layout;
-    this._layout = layout === undefined ? this.parent.layout : layout === this.parent.layout ? undefined : layout;
-    const nextLayout = this._layout ?? this.parent.layout;
+  setLayout (layout: RectLayout | undefined, previousLayout?: RectLayout) {
+    previousLayout = previousLayout ?? this.layout;
+
+    if (previousLayout.allowRestore) {
+      previousLayout.storeRect(this, this.rect);
+    }
+    previousLayout.off('update', this.onLayoutChange, this);
+    previousLayout.off('break', this.onReLayout, this);
+
+    const nextLayout = layout ?? this.parent.layout;
+    this._layout = layout === this.parent.layout ? undefined : layout;
     nextLayout.on('update', this.onLayoutChange, this);
     nextLayout.on('break', this.onReLayout, this);
-    if (previousLayout.allowRestore) {
-      previousLayout.restoredRects.set(this, rect);
-    }
     if (this.bound) {
       const { el } = this.bound;
       nextLayout.renderTransitionProperties(el.style);
@@ -250,7 +109,7 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
       });
     }
 
-    this.onReLayout(nextLayout.allowRestore ? nextLayout.restoredRects.get(this) : null);
+    this.onReLayout(nextLayout.getStoredRect(this));
   }
 
   public notifyPriorityChange (priority: number) {
@@ -259,9 +118,15 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
   }
 
   initialize () {
-    this.parent.on('update:layout', this.setLayout, this);
+    this.parent.on('update:layout', this.onParentLayoutUpdate, this);
     this.layout.on('update', this.onLayoutChange, this);
     this.layout.on('break', this.onReLayout, this);
+  }
+
+  onParentLayoutUpdate (newLayout: RectLayout, previousLayout: RectLayout) {
+    if (!this._layout) {
+      this.setLayout(newLayout, previousLayout);
+    }
   }
 
   onLayoutChange () {
@@ -278,7 +143,7 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
 
   destroy () {
     this.unbind();
-    this.parent.off('update:layout', this.setLayout, this);
+    this.parent.off('update:layout', this.onParentLayoutUpdate, this);
     this.layout.off('update', this.onLayoutChange, this);
     this.layout.off('break', this.onReLayout, this);
     this.emit('destroy');

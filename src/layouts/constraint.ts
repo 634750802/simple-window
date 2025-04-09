@@ -1,3 +1,4 @@
+import { IDisposable } from '../draggable.js';
 import { cloneMutableEdges, type Edges, type Rect, type SizeConstraints, type Vector2 } from '../rect.js';
 import { RectLayout } from './base.js';
 
@@ -22,24 +23,34 @@ export function isConstraintLayout (layout: RectLayout): layout is RectLayout & 
   return (layout as never as IConstraintRectLayout).hasConstraintRect;
 }
 
+export interface WindowLike {
+  innerWidth: number;
+  innerHeight: number;
+
+  addEventListener (type: 'resize', listener: () => void): void;
+
+  removeEventListener (type: 'resize', listener: () => void): void;
+}
+
 export class ConstraintRectLayout extends RectLayout implements IConstraintRectLayout, ISizeConstrainedRectLayout {
   readonly hasConstraintRect = true;
   readonly sizeConstrained = true;
-  protected _constraint: Edges & { width: number, height: number };
+  protected _constraint: ConstraintEdges;
+  private _bound: IDisposable[] | null = null;
 
   constructor (
-    constraintRect: Rect,
+    constraintRect: Rect | Element | WindowLike,
     protected _sizeConstraints: SizeConstraints,
   ) {
     super();
-    this._constraint = {
-      left: constraintRect.x,
-      right: constraintRect.x + constraintRect.width,
-      top: constraintRect.y,
-      bottom: constraintRect.y + constraintRect.height,
-      width: constraintRect.width,
-      height: constraintRect.height,
-    };
+    this._constraint = constraintRectToConstraints(getConstraintRect(constraintRect));
+    if (isWindowLike(constraintRect)) {
+      this.bindWindow(constraintRect);
+    }
+    if (constraintRect instanceof Element) {
+      this.bindElement(constraintRect);
+    }
+    this.autoBind(constraintRect);
   }
 
   getConstraint (): ConstraintEdges {
@@ -182,4 +193,73 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
       height: Math.max(Math.min(this._sizeConstraints.suggestionHeight ?? this._sizeConstraints.minHeight, this._sizeConstraints.maxHeight), this._sizeConstraints.minHeight),
     });
   }
+
+  protected autoBind (target: unknown) {
+    if (target == null) return;
+    if (typeof target !== 'object') return;
+    if (isWindowLike(target)) {
+      this.bindWindow(target);
+    }
+    if (target instanceof Element) {
+      this.bindElement(target);
+    }
+  }
+
+  bindElement (element: Element) {
+    this.unbind();
+    const onResize = () => {
+      this.setConstraintRect(element.getBoundingClientRect());
+    };
+    const ro = new ResizeObserver(onResize);
+    ro.observe(element);
+    window.addEventListener('resize', onResize);
+    this._bound = [() => {
+      ro.disconnect();
+      window.removeEventListener('resize', onResize);
+    }];
+  }
+
+  bindWindow (window: WindowLike) {
+    this.unbind();
+    const onResize = () => {
+      this.setConstraintRect({ x: 0, y: 0, width: window.innerWidth, height: window.innerHeight });
+    };
+    onResize();
+    window.addEventListener('resize', onResize);
+    this._bound = [() => {
+      window.removeEventListener('resize', onResize);
+    }];
+  }
+
+  unbind () {
+    if (this._bound) {
+      this._bound.forEach(fn => fn());
+      this._bound = null;
+    }
+  }
+}
+
+export function isWindowLike (obj: unknown): obj is WindowLike {
+  return ((obj as WindowLike).innerWidth != null) && ((obj as WindowLike).addEventListener != null);
+}
+
+export function getConstraintRect (rect: Rect | Element | WindowLike): Rect {
+  if (isWindowLike(rect)) {
+    return { x: 0, y: 0, width: rect.innerWidth, height: rect.innerHeight };
+  }
+  if (rect instanceof Element) {
+    return rect.getBoundingClientRect();
+  }
+  return rect;
+}
+
+export function constraintRectToConstraints (rect: Rect): ConstraintEdges {
+  return Object.freeze({
+    left: rect.x,
+    right: rect.x + rect.width,
+    top: rect.y,
+    bottom: rect.y + rect.height,
+    width: rect.width,
+    height: rect.height,
+  });
 }

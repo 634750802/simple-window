@@ -1,5 +1,35 @@
 import { ConstraintGridRectLayout, ConstraintRectLayout, DialogLayout, RectWindowCollection } from './src/index.js';
 
+const grid = new ConstraintGridRectLayout(12, 12, document.getElementById('constraint')!, {
+  minCols: 2,
+  maxCols: 4,
+  minRows: 2,
+  maxRows: 4,
+  suggestionCols: 3,
+  suggestionRows: 3,
+});
+
+grid.setRectPaddingPixels({
+  left: 8,
+  right: 8,
+  top: 8,
+  bottom: 8,
+});
+
+const normal = new ConstraintRectLayout(window, {
+  minWidth: 200,
+  minHeight: 200,
+  maxWidth: 300,
+  maxHeight: 300,
+});
+
+normal.setRectPaddingPixels({
+  left: 8,
+  right: 8,
+  top: 8,
+  bottom: 8,
+});
+
 const collection = new RectWindowCollection({
   defaultConstraintPadding: {
     top: 10,
@@ -7,17 +37,8 @@ const collection = new RectWindowCollection({
     right: 10,
     bottom: 10,
   },
-  layout: new ConstraintRectLayout({
-    x: 8, y: 8, width: window.innerWidth - 16, height: window.innerHeight - 16,
-  }, {
-    minWidth: 200,
-    minHeight: 200,
-    maxWidth: 300,
-    maxHeight: 300,
-  }),
+  layout: normal,
 });
-
-collection.watchWindowResize();
 
 let i = 0;
 document.querySelector('#add')!.addEventListener('click', () => {
@@ -55,24 +76,10 @@ let constraint = true;
 document.getElementById('layout-switch')!.addEventListener('click', () => {
   if (constraint) {
     constraint = false;
-    collection.layout = new ConstraintGridRectLayout(12, 12, collection.getDefaultConstraint(), {
-      minCols: 2,
-      maxCols: 4,
-      minRows: 2,
-      maxRows: 4,
-      suggestionCols: 3,
-      suggestionRows: 3,
-    });
-    collection.bindConstraintElement(document.getElementById('constraint')!);
+    collection.layout = grid;
   } else {
     constraint = true;
-    collection.unbindConstraintElement();
-    collection.layout = new ConstraintRectLayout(collection.getDefaultConstraint(), {
-      minWidth: 200,
-      minHeight: 200,
-      maxWidth: 300,
-      maxHeight: 300,
-    });
+    collection.layout = normal;
   }
 });
 

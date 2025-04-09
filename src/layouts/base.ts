@@ -1,5 +1,5 @@
 import { EventEmitter } from 'eventemitter3';
-import { type Edges, type Rect, type Vector2 } from '../rect.js';
+import { type Edges, padding, type Rect, type Vector2 } from '../rect.js';
 import type { RectWindow } from '../window.js';
 
 export interface RectLayoutEventsMap {
@@ -25,9 +25,30 @@ export class RectLayout extends EventEmitter<RectLayoutEventsMap> {
   allowMove = true;
   allowResize = true;
   allowTransitions = false;
-  allowRestore = false;
+  allowRestore = true;
 
-  readonly restoredRects: WeakMap<RectWindow<any>, Rect> = new Map();
+  private readonly restoredRects: WeakMap<RectWindow<any>, Rect> = new Map();
+
+  constructor () {super();
+    console.log('new', this.constructor.name);
+  }
+
+  storeRect (window: RectWindow<any>, rect: Rect) {
+    if (this.allowRestore) {
+      console.log('set', this.constructor.name, window.id, rect);
+      this.restoredRects.set(window, rect);
+    }
+  }
+
+  getStoredRect (window: RectWindow<any>) {
+    if (!this.allowRestore) {
+      return undefined;
+    }
+    const rect = this.restoredRects.get(window);
+    console.log('get', this.constructor.name, window.id, rect);
+    this.restoredRects.delete(window);
+    return rect;
+  }
 
   transitions: RectLayoutTransitionProperties = {
     duration: 400,
@@ -73,12 +94,7 @@ export class RectLayout extends EventEmitter<RectLayoutEventsMap> {
    * @param rect
    */
   toRectInPixels (rect: Rect): Rect {
-    return {
-      x: rect.x + this._rectPaddingPixels.left,
-      y: rect.y + this._rectPaddingPixels.top,
-      width: rect.width - this._rectPaddingPixels.left - this._rectPaddingPixels.right,
-      height: rect.height - this._rectPaddingPixels.top - this._rectPaddingPixels.bottom,
-    };
+    return padding(rect, this._rectPaddingPixels);
   }
 
   setRectPaddingPixels (padding: Edges) {

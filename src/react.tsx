@@ -1,6 +1,8 @@
-import { type ComponentProps, type ComponentPropsWithoutRef, createContext, type ReactNode, type Ref, use, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
+import { type ComponentProps, type ComponentPropsWithoutRef, createContext, type ReactNode, type Ref, type RefObject, use, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { RectLayout } from './layouts/base.js';
-import { RectWindow, RectWindowCollection, type RectWindowCollectionOptions } from './window.js';
+import type { ConstraintRectLayout } from './layouts/constraint.js';
+import { RectWindow } from './window.js';
+import { RectWindowCollection, type RectWindowCollectionOptions } from './windows.js';
 
 const RectWindowsContext = createContext<RectWindowCollection<any> | null>(null);
 const RectWindowContext = createContext<RectWindow<any> | null>(null);
@@ -20,10 +22,6 @@ export function useRectWindow<R> () {
 
 export function RectWindows<R> ({ defaultConstraintPadding, zIndexBase, layout, children }: { zIndexBase?: number, children: ReactNode } & Pick<RectWindowCollectionOptions<R>, 'defaultConstraintPadding' | 'layout' | 'zIndexBase'>) {
   const [collection] = useState(() => new RectWindowCollection({ defaultConstraintPadding, zIndexBase, layout }));
-
-  useLayoutEffect(() => {
-    collection.watchWindowResize();
-  }, [])
 
   return (
     <RectWindowsContext value={collection}>
@@ -108,4 +106,29 @@ function RectWindowResizeHandlers ({ window }: { window?: RectWindow<any> | null
       <div data-rect-draggable-corner="bottom-right" style={{ display: allowResize ? 'block' : 'none' }} />
     </>
   );
+}
+
+export function useConstraintRectLayoutWithElement<E extends Element> ({ elementRef, initializeLayout }: { elementRef: RefObject<E | null>, initializeLayout: () => ConstraintRectLayout }) {
+  const layout = useMemo(() => initializeLayout(), []);
+
+  useLayoutEffect(() => {
+    if (elementRef.current) {
+      layout.bindElement(elementRef.current);
+      return () => {
+        layout.unbind();
+      };
+    }
+  }, [layout, elementRef]);
+}
+
+export function useConstraintRectLayoutWithWindow<R> ({ initializeLayout }: { initializeLayout: () => ConstraintRectLayout }) {
+  const layout = useMemo(() => initializeLayout(), []);
+
+  useLayoutEffect(() => {
+    layout.bindWindow(window);
+
+    return () => {
+      layout.unbind();
+    };
+  }, [layout]);
 }
