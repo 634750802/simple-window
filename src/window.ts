@@ -1,8 +1,8 @@
 import { EventEmitter } from 'eventemitter3';
 import { bindDraggable, type DraggableTarget, type IDisposable } from './draggable.js';
-import type { RectLayout } from './layouts/base.js';
+import type { RectLayout, RectLayoutTransitionProperties } from './layouts/base.js';
 import { type Edges, type Rect, type Vector2 } from './rect.js';
-import { getRequiredElement } from './utils.js';
+import { getRequiredElement, renderTransitionProperties } from './utils.js';
 import type { RectWindowCollection } from './windows.js';
 
 type RectWindowVirtualBoundDOMElementEventsMap = {
@@ -64,6 +64,12 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
   private bound: { el: RectWindowVirtualBoundDOMElement, disposables: IDisposable[] } | null = null;
   private _layout: RectLayout | undefined;
 
+  switchLayoutTransitions: RectLayoutTransitionProperties = {
+    duration: 400,
+    easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+    properties: ['transform', 'width', 'height'],
+  };
+
   constructor (
     readonly parent: RectWindowCollection<Props>,
     readonly id: number,
@@ -90,12 +96,10 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
     nextLayout.on('break', this.onReLayout, this);
     if (this.bound) {
       const { el } = this.bound;
-      nextLayout.renderTransitionProperties(el.style);
+      renderTransitionProperties(el.style, this.switchLayoutTransitions);
 
       const onTransitionEndOrCanceled = () => {
-        if (!nextLayout.allowTransitions) {
-          el.style.transition = '';
-        }
+        el.style.transition = '';
         el.removeEventListener?.('transitioncancel', onTransitionEndOrCanceled);
         el.removeEventListener?.('transitionend', onTransitionEndOrCanceled);
       };
@@ -174,7 +178,7 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
 
     const layout = this._layout ?? this.parent.layout;
     if (layout.allowTransitions) {
-      layout.renderTransitionProperties(el.style);
+      renderTransitionProperties(el.style, layout.transitions);
     } else {
       el.style.transition = '';
     }
@@ -202,6 +206,9 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
           () => this.layout.allowMove,
           () => {
             el.dataset.dragging = 'true';
+            if (this.layout.allowTransitions) {
+              renderTransitionProperties(el.style, this.layout.transitions);
+            }
             this.emit('drag:start');
             this.emit('tap');
             start = this.rect;
@@ -213,6 +220,9 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
           },
           () => {
             delete el.dataset.dragging;
+            if (this.layout.allowTransitions) {
+              el.style.transition = '';
+            }
             this.emit('drag:end');
           },
         ));
@@ -238,6 +248,9 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
           () => this.layout.allowResize,
           () => {
             el.dataset.resizing = edgeOrCorner;
+            if (this.layout.allowTransitions) {
+              renderTransitionProperties(el.style, this.layout.transitions);
+            }
             this.emit(`resize:${edgeOrCorner}:start`);
             start = this.rect;
           },
@@ -248,6 +261,9 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
           },
           () => {
             delete el.dataset.resizing;
+            if (this.layout.allowTransitions) {
+              el.style.transition = '';
+            }
             this.emit('resize:left:end');
           },
         ));

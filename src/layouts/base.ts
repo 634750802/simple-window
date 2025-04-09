@@ -11,8 +11,6 @@ export interface RectLayoutEventsMap {
    * layout was changed like re-layout
    */
   'break': [];
-
-  'swap': [number, number];
 }
 
 export interface RectLayoutTransitionProperties {
@@ -29,8 +27,14 @@ export class RectLayout extends EventEmitter<RectLayoutEventsMap> {
 
   private readonly restoredRects: WeakMap<RectWindow<any>, Rect> = new Map();
 
-  constructor () {super();
-    console.log('new', this.constructor.name);
+  public readonly transitions: RectLayoutTransitionProperties = {
+    duration: 200,
+    easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+    properties: ['transform', 'width', 'height'],
+  };
+
+  constructor () {
+    super();
   }
 
   storeRect (window: RectWindow<any>, rect: Rect) {
@@ -49,12 +53,6 @@ export class RectLayout extends EventEmitter<RectLayoutEventsMap> {
     this.restoredRects.delete(window);
     return rect;
   }
-
-  transitions: RectLayoutTransitionProperties = {
-    duration: 400,
-    easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
-    properties: ['transform', 'width', 'height'],
-  };
 
   _rectPaddingPixels: Edges = { top: 0, left: 0, right: 0, bottom: 0 };
 
@@ -101,11 +99,6 @@ export class RectLayout extends EventEmitter<RectLayoutEventsMap> {
     this._rectPaddingPixels = padding;
     this.emit('update');
     return this;
-  }
-
-  renderTransitionProperties (style: Pick<CSSStyleDeclaration, 'transition'>) {
-    const { duration, easing, properties } = this.transitions;
-    style.transition = `${properties.map(t => `${t} ${duration}ms ${easing}`).join(', ')}`;
   }
 
   renderRectToCSSStyleProperty (rect: Rect, style: Pick<CSSStyleDeclaration, 'width' | 'height' | 'transform' | 'zIndex'>) {
