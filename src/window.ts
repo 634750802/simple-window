@@ -107,13 +107,6 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
   private _postTriggerSwitchTransition () {
     if (this.bound) {
       const { el } = this.bound;
-
-      const onTransitionEndOrCanceled = () => {
-        el.style.transition = '';
-        el.removeEventListener?.('transitioncancel', onTransitionEndOrCanceled);
-        el.removeEventListener?.('transitionend', onTransitionEndOrCanceled);
-      };
-
       const animations = el.getAnimations?.();
       if (animations && animations.length > 0) {
         const transitions = animations.filter(animation => animation instanceof CSSTransition);
@@ -121,7 +114,7 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
         const onFinishOrCancel = () => {
           total--;
           if (total === 0) {
-            onTransitionEndOrCanceled();
+            el.style.transition = '';
           }
         };
         for (let transition of transitions) {
@@ -130,6 +123,8 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
           transition.addEventListener('finish', onFinishOrCancel, { once: true });
           transition.addEventListener('cancel', onFinishOrCancel, { once: true });
         }
+      } else {
+        el.style.transition = '';
       }
     }
   }
