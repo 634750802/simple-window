@@ -8,12 +8,7 @@ const RectWindowsContext = createContext<RectWindowCollection<any> | null>(null)
 const RectWindowContext = createContext<RectWindow<any> | null>(null);
 
 export function useRectWindows<R> () {
-  const collection = use(RectWindowsContext);
-  if (!collection) {
-    throw new Error('not in RectWindowsContext');
-  }
-
-  return collection;
+  return use(RectWindowsContext);
 }
 
 export function useRectWindow<R> () {
@@ -21,7 +16,12 @@ export function useRectWindow<R> () {
 }
 
 export function RectWindows<R> ({ defaultConstraintPadding, zIndexBase, layout, children }: { zIndexBase?: number, children: ReactNode } & Pick<RectWindowCollectionOptions<R>, 'defaultConstraintPadding' | 'layout' | 'zIndexBase'>) {
-  const [collection] = useState(() => new RectWindowCollection({ defaultConstraintPadding, zIndexBase, layout }));
+  const [collection] = useState(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    return new RectWindowCollection({ defaultConstraintPadding, zIndexBase, layout });
+  });
 
   return (
     <RectWindowsContext value={collection}>
@@ -36,6 +36,9 @@ export function RectWindowWrapper<R> ({ windowProps, windowKey, children, ref: f
   const [window, setWindow] = useState<RectWindow<R> | null>(null);
 
   useEffect(() => {
+    if (!collection) {
+      return;
+    }
     const el = ref.current!;
     const window = collection.newWindow({
       key: windowKey,
@@ -48,7 +51,7 @@ export function RectWindowWrapper<R> ({ windowProps, windowKey, children, ref: f
     return () => {
       window.destroy();
     };
-  }, []);
+  }, [collection]);
 
   useImperativeHandle<RectWindow<R> | null, RectWindow<R> | null>(forwardedRef, () => window, [window]);
 

@@ -44,12 +44,6 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
   ) {
     super();
     this._constraint = constraintRectToConstraints(getConstraintRect(constraintRect));
-    if (isWindowLike(constraintRect)) {
-      this.bindWindow(constraintRect);
-    }
-    if (constraintRect instanceof Element) {
-      this.bindElement(constraintRect);
-    }
     this.autoBind(constraintRect);
   }
 

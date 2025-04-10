@@ -69,6 +69,7 @@ export class RectWindowCollection<Props> extends EventEmitter<RectWindowCollecti
       this._notifyPriorityChanges();
     });
 
+    this._notifyPriorityChanges();
     return window;
   }
 
