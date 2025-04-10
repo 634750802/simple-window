@@ -211,6 +211,7 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
       ro.disconnect();
       window.removeEventListener('resize', onResize);
     }];
+    this.emit('break');
   }
 
   bindWindow (window: WindowLike) {
@@ -223,6 +224,7 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
     this._bound = [() => {
       window.removeEventListener('resize', onResize);
     }];
+    this.emit('break');
   }
 
   unbind () {

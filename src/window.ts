@@ -14,7 +14,7 @@ type RectWindowVirtualBoundDOMElementEventsMap = {
   transitioncancel: TransitionEvent;
 }
 
-export interface RectWindowVirtualBoundDOMElement {
+export interface RectWindowVirtualBoundDOMElement extends Partial<Pick<HTMLElement, 'getAnimations'>> {
   readonly dataset: DOMStringMap;
   style: Pick<CSSStyleDeclaration, 'width' | 'height' | 'position' | 'left' | 'top' | 'transform' | 'transition' | 'transformOrigin' | 'perspectiveOrigin' | 'zIndex'>;
 
@@ -94,9 +94,19 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
     this._layout = layout === this.parent.layout ? undefined : layout;
     nextLayout.on('update', this.onLayoutChange, this);
     nextLayout.on('break', this.onReLayout, this);
+    this.onReLayout(nextLayout.getStoredRect(this));
+  }
+
+  private _triggerSwitchTransition () {
     if (this.bound) {
       const { el } = this.bound;
       renderTransitionProperties(el.style, this.switchLayoutTransitions);
+    }
+  }
+
+  private _postTriggerSwitchTransition () {
+    if (this.bound) {
+      const { el } = this.bound;
 
       const onTransitionEndOrCanceled = () => {
         el.style.transition = '';
@@ -104,16 +114,24 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
         el.removeEventListener?.('transitionend', onTransitionEndOrCanceled);
       };
 
-      el.addEventListener?.('transitioncancel', onTransitionEndOrCanceled);
-      el.addEventListener?.('transitionend', onTransitionEndOrCanceled);
+      const animations = el.getAnimations?.();
+      if (animations && animations.length > 0) {
+        const transitions = animations.filter(animation => animation instanceof CSSTransition);
+        let total = 0;
+        const onFinishOrCancel = () => {
+          total--;
+          if (total === 0) {
+            onTransitionEndOrCanceled();
+          }
+        };
+        for (let transition of transitions) {
+          total++;
 
-      this.bound.disposables.push(() => {
-        el.removeEventListener?.('transitioncancel', onTransitionEndOrCanceled);
-        el.removeEventListener?.('transitionend', onTransitionEndOrCanceled);
-      });
+          transition.addEventListener('finish', onFinishOrCancel, { once: true });
+          transition.addEventListener('cancel', onFinishOrCancel, { once: true });
+        }
+      }
     }
-
-    this.onReLayout(nextLayout.getStoredRect(this));
   }
 
   public notifyPriorityChange (priority: number) {
@@ -141,7 +159,9 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
 
   onReLayout (suggestedRect?: Rect | undefined | null) {
     this.rect = suggestedRect ? this.layout.fitRect(suggestedRect) : this.layout.initializeRect(this.id);
+    this._triggerSwitchTransition();
     this.flush();
+    this._postTriggerSwitchTransition();
     this.emit('layout');
   }
 

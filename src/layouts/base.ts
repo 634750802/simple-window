@@ -39,7 +39,6 @@ export class RectLayout extends EventEmitter<RectLayoutEventsMap> {
 
   storeRect (window: RectWindow<any>, rect: Rect) {
     if (this.allowRestore) {
-      console.log('set', this.constructor.name, window.id, rect);
       this.restoredRects.set(window, rect);
     }
   }
@@ -49,7 +48,6 @@ export class RectLayout extends EventEmitter<RectLayoutEventsMap> {
       return undefined;
     }
     const rect = this.restoredRects.get(window);
-    console.log('get', this.constructor.name, window.id, rect);
     this.restoredRects.delete(window);
     return rect;
   }
