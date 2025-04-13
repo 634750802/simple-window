@@ -35,7 +35,7 @@ export class RectLayout extends EventEmitter<RectLayoutEventsMap> {
   allowTransitions = false;
   allowRestore = true;
 
-  private readonly _storedRects: WeakMap<RectWindow<any>, Rect> = new Map();
+  private _storedRects: WeakMap<RectWindow<any>, Rect> = new Map();
   protected readonly _windows: Map<number, RectWindow<any>> = new Map();
   protected _activeWindows: number[] = [];
 
@@ -56,6 +56,10 @@ export class RectLayout extends EventEmitter<RectLayoutEventsMap> {
     this._rectPaddingPixels = padding;
     this.emit('update');
     return this;
+  }
+
+  cleanupStoredRects () {
+    this._storedRects = new WeakMap();
   }
 
   storeRect (window: RectWindow<any>, rect: Rect) {

@@ -176,7 +176,7 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
 
   onReLayout (suggestedRect?: Rect | undefined | null, from?: Keyframe) {
     from = from ?? this.captureKeyframe();
-    this.rect = suggestedRect ? this.layout.fitRect(suggestedRect) : this.layout.initializeRect(this.id);
+    this.rect = suggestedRect ? this.layout.fitRect(suggestedRect) : this.layout.fitRect(this.layout.initializeRect(this.id));
     const to = this.captureKeyframe();
     this._animate([from, to], this.switchLayoutEffectTiming, () => {
       this.flush();

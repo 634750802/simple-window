@@ -241,6 +241,7 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
   }
 
   unbind () {
+    this.cleanupStoredRects();
     if (this._bound) {
       this._bound.forEach(fn => fn());
       this._bound = null;
