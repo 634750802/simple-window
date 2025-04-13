@@ -52,6 +52,7 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
   }
 
   setConstraintRect (rect: Rect, breaking?: boolean) {
+    const previous = { ...this._constraint };
     this._constraint = {
       left: rect.x,
       right: rect.x + rect.width,
@@ -63,7 +64,18 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
     if (breaking) {
       this.emit('break');
     } else {
-      this.emit('update');
+      if (
+        Math.abs(previous.width - this._constraint.width) > 100
+        || Math.abs(previous.height - this._constraint.height) > 100
+        || Math.abs(previous.left - this._constraint.left) > 100
+        || Math.abs(previous.top - this._constraint.top) > 100
+        || Math.abs(previous.right - this._constraint.right) > 100
+        || Math.abs(previous.bottom - this._constraint.bottom) > 100
+      ) {
+        this.emit('update', true);
+      } else {
+        this.emit('update');
+      }
     }
   }
 
@@ -178,11 +190,11 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
     return { x, y, width, height };
   }
 
-  initializeRect (id: number): Rect {
+  initializeRectByIndex (index: number): Rect {
     const width = Math.max(Math.min(this._sizeConstraints.suggestionWidth ?? this._sizeConstraints.minWidth, this._sizeConstraints.maxWidth), this._sizeConstraints.minWidth);
     return this.fitRect({
-      x: this._constraint.right - 32 * id - width,
-      y: this._constraint.top + 32 * id,
+      x: this._constraint.right - 32 * index - width,
+      y: this._constraint.top + 32 * index,
       width,
       height: Math.max(Math.min(this._sizeConstraints.suggestionHeight ?? this._sizeConstraints.minHeight, this._sizeConstraints.maxHeight), this._sizeConstraints.minHeight),
     });
@@ -211,6 +223,7 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
       ro.disconnect();
       window.removeEventListener('resize', onResize);
     }];
+    onResize();
     this.emit('break');
   }
 

@@ -2,7 +2,14 @@ import { makeVector2, type Vector2 } from './rect.js';
 import { getEventButton, getEventOffset } from './utils.js';
 
 export interface IDisposable {
+  tag?: string;
+
   (): void;
+}
+
+export function taggedDisposable (tag: string, fn: () => void): IDisposable {
+  (fn as IDisposable).tag = tag;
+  return fn;
 }
 
 type DraggableEventsMap = {
@@ -141,9 +148,9 @@ export function bindDraggable (
     target.removeEventListener('touchstart', handleMouseStart);
   });
 
-  return () => {
+  return taggedDisposable('draggable', () => {
     cancelAnimationFrame(animationFrameHandler);
     disposables.forEach(dispose => dispose());
     currentDisposable?.();
-  };
+  });
 }

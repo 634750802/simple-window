@@ -1,6 +1,6 @@
 import { EventEmitter } from 'eventemitter3';
 import type { RectLayout } from './layouts/base.js';
-import { type Edges, makeRect, type Rect } from './rect.js';
+import { type Edges, makeRect, type Rect, UNINITIALIZED_RECT } from './rect.js';
 import { RectWindow } from './window.js';
 
 export interface NewWindowOptions<Props> {
@@ -54,7 +54,7 @@ export class RectWindowCollection<Props> extends EventEmitter<RectWindowCollecti
 
   newWindow ({ key, rect, props }: NewWindowOptions<Props>) {
     const id = this.windowsPriority.reduce((id, w) => Math.max(w.id, id), -1) + 1;
-    const window = new RectWindow(this, id, key, rect ?? makeRect(this.layout.initializeRect(id)), props);
+    const window = new RectWindow(this, id, key, rect ?? UNINITIALIZED_RECT, props);
     this.windows.set(key || id, window);
     this.windowsPriority.push(window);
     window.initialize();

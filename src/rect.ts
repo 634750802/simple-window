@@ -5,6 +5,8 @@ export interface Rect {
   readonly height: number;
 }
 
+export const UNINITIALIZED_RECT = makeRect({ x: 0, y: 0, width: 0, height: 0 });
+
 export interface Edges {
   readonly top: number;
   readonly right: number;
@@ -63,4 +65,8 @@ export function cloneMutableRect (data: Rect) {
     width: data.width,
     height: data.height,
   };
+}
+
+export function isSameRect (a: Rect, b: Rect) {
+  return a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
 }

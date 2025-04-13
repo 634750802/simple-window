@@ -7,7 +7,11 @@
   <link rel="stylesheet" type="text/css" href="/style.css">
   <style>
     html, body {
+      width: 100vw;
+      height: 100vh;
       margin: 0;
+      perspective: 1500px;
+      perspective-origin: 50% 50%;
     }
 
     #constraint {
@@ -55,16 +59,6 @@
     [data-rect-draggable-corner="bottom-right"] {
       background-color: deepskyblue;
       opacity: 0.5;
-    }
-
-    [data-rect][data-dragging], [data-rect][data-resizing] {
-      pointer-events: none;
-    }
-
-
-    [data-rect][data-dragging] [data-dragging],
-    [data-rect][data-resizing] [data-dragging] {
-      pointer-events: auto;
     }
   </style>
 </head>

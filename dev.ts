@@ -55,7 +55,7 @@ document.querySelector('#add')!.addEventListener('click', () => {
   <button onclick="window.removeDialog(${window.id})">-</button>
   <button onclick="window.destroyWindow(${window.id})">x</button>
 </div>
-  <div style="width: 100%; height: calc(100% - 32px); display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: bold">${++i}</div>
+  <div style="width: 100%; height: calc(100% - 32px); display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: bold; word-break: break-word; overflow: hidden">${`${++i}`.repeat(12)}</div>
   <div data-rect-draggable-edge="left"></div>
   <div data-rect-draggable-edge="right"></div>
   <div data-rect-draggable-edge="bottom"></div>

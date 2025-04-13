@@ -1,5 +1,4 @@
 import type { DraggableTarget } from './draggable.js';
-import type { RectLayoutTransitionProperties } from './layouts/base.js';
 import type { Vector2 } from './rect.js';
 import type { RectWindowVirtualBoundDOMElement } from './window.js';
 
@@ -36,9 +35,4 @@ export function getEventButton (event: MouseEvent | TouchEvent): number | null {
 
 function isTouchEvent (event: MouseEvent | TouchEvent): event is TouchEvent {
   return (event as TouchEvent).touches !== undefined;
-}
-
-export function renderTransitionProperties (style: Pick<CSSStyleDeclaration, 'transition'>, transitions: RectLayoutTransitionProperties) {
-  const { duration, easing, properties } = transitions;
-  style.transition = `${properties.map(t => `${t} ${duration}ms ${easing}`).join(', ')}`;
 }

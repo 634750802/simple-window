@@ -29,7 +29,7 @@ export class DialogLayout extends RectLayout {
     return this.initializeRect();
   }
 
-  renderRectToCSSStyleProperty (rect: Rect, style: Pick<CSSStyleDeclaration, 'width' | 'height' | 'transform' | 'zIndex'>) {
+  renderRectToCSSStyleProperty (rect: Rect, style: Pick<CSSStyleDeclaration, 'left' | 'top' | 'width' | 'height' | 'transform' | 'transformOrigin' | 'zIndex'>) {
     super.renderRectToCSSStyleProperty(rect, style);
     style.zIndex = '1000';
   }

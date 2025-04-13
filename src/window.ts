@@ -1,8 +1,9 @@
 import { EventEmitter } from 'eventemitter3';
+import type { CaptureKeyframeMutation } from './animation.js';
 import { bindDraggable, type DraggableTarget, type IDisposable } from './draggable.js';
-import type { RectLayout, RectLayoutTransitionProperties } from './layouts/base.js';
-import { type Edges, type Rect, type Vector2 } from './rect.js';
-import { getRequiredElement, renderTransitionProperties } from './utils.js';
+import type { RectLayout } from './layouts/base.js';
+import { type Edges, isSameRect, makeRect, type Rect, UNINITIALIZED_RECT, type Vector2 } from './rect.js';
+import { getRequiredElement } from './utils.js';
 import type { RectWindowCollection } from './windows.js';
 
 type RectWindowVirtualBoundDOMElementEventsMap = {
@@ -14,7 +15,7 @@ type RectWindowVirtualBoundDOMElementEventsMap = {
   transitioncancel: TransitionEvent;
 }
 
-export interface RectWindowVirtualBoundDOMElement extends Partial<Pick<HTMLElement, 'getAnimations'>> {
+export interface RectWindowVirtualBoundDOMElement extends Partial<Pick<HTMLElement, 'getAnimations' | 'animate' | 'cloneNode' | 'parentElement'>> {
   readonly dataset: DOMStringMap;
   style: Pick<CSSStyleDeclaration, 'width' | 'height' | 'position' | 'left' | 'top' | 'transform' | 'transition' | 'transformOrigin' | 'perspectiveOrigin' | 'zIndex'>;
 
@@ -56,6 +57,8 @@ export interface RectWindowCollectionEventsMap<Props> {
   'resize:bottom-left:start': [];
   'resize:bottom-left:move': [Vector2, Vector2];
   'resize:bottom-left:end': [];
+  'animate:start': [Keyframe[]];
+  'animate:end': [Keyframe[]];
 }
 
 export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMap<Props>> {
@@ -63,11 +66,23 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
 
   private bound: { el: RectWindowVirtualBoundDOMElement, disposables: IDisposable[] } | null = null;
   private _layout: RectLayout | undefined;
+  private _animatingKeyframes: Keyframe[] | null = null;
 
-  switchLayoutTransitions: RectLayoutTransitionProperties = {
-    duration: 400,
+  public get animatingKeyframes () {
+    return this._animatingKeyframes;
+  }
+
+  enterEffectTiming: Omit<EffectTiming, 'fill'> = {
+    duration: 250,
     easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
-    properties: ['transform', 'width', 'height'],
+  };
+  exitEffectTiming: Omit<EffectTiming, 'fill'> = {
+    duration: 250,
+    easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+  };
+  switchLayoutEffectTiming: Omit<EffectTiming, 'fill'> = {
+    duration: 800,
+    easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
   };
 
   constructor (
@@ -81,51 +96,45 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
     this._layout = undefined;
   }
 
-  setLayout (layout: RectLayout | undefined, previousLayout?: RectLayout) {
-    previousLayout = previousLayout ?? this.layout;
-
-    if (previousLayout.allowRestore) {
-      previousLayout.storeRect(this, this.rect);
-    }
-    previousLayout.off('update', this.onLayoutChange, this);
-    previousLayout.off('break', this.onReLayout, this);
+  setLayout (layout: RectLayout | undefined, previousLayout?: RectLayout, previousKeyframe?: Keyframe) {
+    previousKeyframe = previousKeyframe ?? (previousLayout ?? this.layout).captureKeyframe(this.rect);
+    this._unbindLayout(previousLayout ?? this.layout);
 
     const nextLayout = layout ?? this.parent.layout;
     this._layout = layout === this.parent.layout ? undefined : layout;
-    nextLayout.on('update', this.onLayoutChange, this);
-    nextLayout.on('break', this.onReLayout, this);
-    this.onReLayout(nextLayout.getStoredRect(this));
+
+    const suggestedRect = this._bindLayout(nextLayout);
+    this.onReLayout(suggestedRect, previousKeyframe);
   }
 
-  private _triggerSwitchTransition () {
+  private _animate (keyframes: Keyframe[], effectTiming: Omit<EffectTiming, 'fill'>, onFinished?: () => void) {
     if (this.bound) {
-      const { el } = this.bound;
-      renderTransitionProperties(el.style, this.switchLayoutTransitions);
+      const handleFinish = () => {
+        this._animatingKeyframes = null;
+        onFinished?.();
+        this.emit('animate:end', keyframes);
+      };
+      const animated = RectWindow.animateElement(this.bound.el, keyframes, effectTiming, handleFinish);
+      if (animated) {
+        this._animatingKeyframes = keyframes;
+        this.emit('animate:start', keyframes);
+      }
     }
   }
 
-  private _postTriggerSwitchTransition () {
-    if (this.bound) {
-      const { el } = this.bound;
-      const animations = el.getAnimations?.();
-      if (animations && animations.length > 0) {
-        const transitions = animations.filter(animation => animation instanceof CSSTransition);
-        let total = 0;
-        const onFinishOrCancel = () => {
-          total--;
-          if (total === 0) {
-            el.style.transition = '';
-          }
-        };
-        for (let transition of transitions) {
-          total++;
+  public static animateElement (element: RectWindowVirtualBoundDOMElement, keyframes: Keyframe[], effectTiming: Omit<EffectTiming, 'fill'>, onFinished: () => void) {
+    const animation = element.animate?.(keyframes, {
+      ...effectTiming,
+      fill: 'auto',
+    });
 
-          transition.addEventListener('finish', onFinishOrCancel, { once: true });
-          transition.addEventListener('cancel', onFinishOrCancel, { once: true });
-        }
-      } else {
-        el.style.transition = '';
-      }
+    if (!animation || animation.playState === 'finished') {
+      onFinished();
+      return false;
+    } else {
+      animation.addEventListener('finish', onFinished, { once: true });
+      animation.addEventListener('cancel', onFinished, { once: true });
+      return true;
     }
   }
 
@@ -136,67 +145,79 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
 
   initialize () {
     this.parent.on('update:layout', this.onParentLayoutUpdate, this);
-    this.layout.on('update', this.onLayoutChange, this);
-    this.layout.on('break', this.onReLayout, this);
+    this._bindLayout(this.layout);
+    if (this.rect === UNINITIALIZED_RECT) {
+      this.rect = makeRect(this.layout.initializeRect(this.id));
+    }
   }
 
   onParentLayoutUpdate (newLayout: RectLayout, previousLayout: RectLayout) {
     if (!this._layout) {
-      this.setLayout(newLayout, previousLayout);
+      this.setLayout(newLayout, previousLayout, previousLayout.captureKeyframe(this.rect));
     }
   }
 
-  onLayoutChange () {
+  onLayoutChange (animate?: boolean, effectTiming?: Omit<EffectTiming, 'fill'>, toExtends?: Partial<Keyframe>, fromKeyframes?: [Keyframe, ...Keyframe[]]) {
+    const from = fromKeyframes ? [...fromKeyframes] : [this.captureKeyframe()];
     this.rect = this.layout.fitRect(this.rect);
-    this.flush();
+    const to = {
+      ...this.captureKeyframe(),
+      ...toExtends,
+    };
+    if (animate) {
+      this._animate([...from, to], effectTiming ?? this.switchLayoutEffectTiming, () => {
+        this.flush();
+      });
+    } else {
+      this.flush();
+    }
     this.emit('layout');
   }
 
-  onReLayout (suggestedRect?: Rect | undefined | null) {
+  onReLayout (suggestedRect?: Rect | undefined | null, from?: Keyframe) {
+    from = from ?? this.captureKeyframe();
     this.rect = suggestedRect ? this.layout.fitRect(suggestedRect) : this.layout.initializeRect(this.id);
-    this._triggerSwitchTransition();
-    this.flush();
-    this._postTriggerSwitchTransition();
+    const to = this.captureKeyframe();
+    this._animate([from, to], this.switchLayoutEffectTiming, () => {
+      this.flush();
+    });
     this.emit('layout');
   }
 
   destroy () {
+    if (this.bound) {
+      const parent = this.bound.el.parentElement;
+      if (parent) {
+        const cloned = this.bound.el.cloneNode?.(true);
+        if (cloned) {
+          parent.appendChild(cloned);
+          const from = this.captureKeyframe();
+          const to = this.layout.getExitKeyframe(this.rect);
+          RectWindow.animateElement(cloned as never, [from, to], this.exitEffectTiming, () => {
+            parent.removeChild(cloned);
+          });
+        }
+      }
+    }
     this.unbind();
     this.parent.off('update:layout', this.onParentLayoutUpdate, this);
-    this.layout.off('update', this.onLayoutChange, this);
-    this.layout.off('break', this.onReLayout, this);
+    this._unbindLayout(this.layout, true);
     this.emit('destroy');
     this.removeAllListeners();
   }
 
-  bind (el: RectWindowVirtualBoundDOMElement, {
-    draggableTargets = ['[data-rect-draggable-handler]'],
-    leftEdge = '[data-rect-draggable-edge="left"]',
-    rightEdge = '[data-rect-draggable-edge="right"]',
-    bottomEdge = '[data-rect-draggable-edge="bottom"]',
-    bottomLeftCorner = '[data-rect-draggable-corner="bottom-left"]',
-    bottomRightCorner = '[data-rect-draggable-corner="bottom-right"]',
-  }: RectWindowBindOptions = {}) {
+  bind (el: RectWindowVirtualBoundDOMElement, options: RectWindowBindOptions = {}) {
     if (this.bound) {
       this.unbind();
     }
     const disposables: IDisposable[] = [];
     this.bound = { el, disposables };
     el.style.position = 'fixed';
-    el.style.transformOrigin = '0% 0%';
-    el.style.perspectiveOrigin = '50% 50%';
     el.style.zIndex = String(this.priority + this.parent.zIndexBase);
     el.style.left = '0';
     el.style.top = '0';
 
     el.dataset.rect = 'true';
-
-    const layout = this._layout ?? this.parent.layout;
-    if (layout.allowTransitions) {
-      renderTransitionProperties(el.style, layout.transitions);
-    } else {
-      el.style.transition = '';
-    }
 
     const onTap = () => {
       this.emit('tap');
@@ -210,10 +231,34 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
       el.removeEventListener?.('touchstart', onTap);
     });
 
+    this.bindHandlers(options);
+
+    const enterKeyframe = this.layout.getEnterKeyframe(this.layout.fitRect(this.rect));
+    this.onLayoutChange(true, this.enterEffectTiming, { opacity: 1 }, [enterKeyframe]);
+  }
+
+  bindHandlers ({
+    draggableTargets = ['[data-rect-draggable-handler]'],
+    leftEdge = '[data-rect-draggable-edge="left"]',
+    rightEdge = '[data-rect-draggable-edge="right"]',
+    bottomEdge = '[data-rect-draggable-edge="bottom"]',
+    bottomLeftCorner = '[data-rect-draggable-corner="bottom-left"]',
+    bottomRightCorner = '[data-rect-draggable-corner="bottom-right"]',
+  }: RectWindowBindOptions = {}) {
+    const bound = this.bound;
+    if (!bound) {
+      return;
+    }
+    bound.disposables.filter(disposable => disposable.tag === 'draggable').forEach(fn => fn());
+    bound.disposables = bound.disposables.filter(disposable => disposable.tag !== 'draggable');
+    const { el, disposables } = bound;
+
     draggableTargets.forEach(query => {
       const target = getRequiredElement(el, query);
       if (target) {
         let start = this.rect;
+        let lastRect = start;
+        let lastKeyframe: Keyframe = this.layout.captureKeyframe(start);
         disposables.push(bindDraggable(
           target,
           window,
@@ -221,23 +266,30 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
           () => this.layout.allowMove,
           () => {
             el.dataset.dragging = 'true';
-            if (this.layout.allowTransitions) {
-              renderTransitionProperties(el.style, this.layout.transitions);
-            }
             this.emit('drag:start');
             this.emit('tap');
             start = this.rect;
+            if (this.layout.allowTransitions) {
+              lastRect = start;
+              lastKeyframe = this.layout.captureKeyframe(lastRect);
+            }
           },
           (offset, delta) => {
-            this.rect = this.layout.move(start, offset, offset);
-            this.flush();
+            const newRect = this.rect = this.layout.move(start, offset, offset);
+            if (this.layout.allowTransitions && !isSameRect(lastRect, newRect)) {
+              const keyframe = this.layout.captureKeyframe(newRect);
+              this._animate([lastKeyframe, keyframe], this.layout.transitionEffectTiming, () => {
+                this.flush();
+              });
+              lastRect = newRect;
+              lastKeyframe = keyframe;
+            } else {
+              this.flush();
+            }
             this.emit('drag:move', offset, delta);
           },
           () => {
             delete el.dataset.dragging;
-            if (this.layout.allowTransitions) {
-              el.style.transition = '';
-            }
             this.emit('drag:end');
           },
         ));
@@ -256,6 +308,8 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
       const target = getRequiredElement(el, query);
       if (target) {
         let start = this.rect;
+        let lastRect = start;
+        let lastKeyframe: Keyframe = this.layout.captureKeyframe(start);
         disposables.push(bindDraggable(
           target,
           window,
@@ -263,22 +317,29 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
           () => this.layout.allowResize,
           () => {
             el.dataset.resizing = edgeOrCorner;
-            if (this.layout.allowTransitions) {
-              renderTransitionProperties(el.style, this.layout.transitions);
-            }
             this.emit(`resize:${edgeOrCorner}:start`);
             start = this.rect;
+            if (this.layout.allowTransitions) {
+              lastRect = start;
+              lastKeyframe = this.layout.captureKeyframe(lastRect);
+            }
           },
           (offset, delta) => {
-            this.rect = this.layout.resize(start, convertToResizeDeltaEdges(offset, edgeOrCorner));
-            this.flush();
+            const newRect = this.rect = this.layout.resize(start, convertToResizeDeltaEdges(offset, edgeOrCorner));
+            if (this.layout.allowTransitions && !isSameRect(lastRect, newRect)) {
+              const keyframe = this.layout.captureKeyframe(newRect);
+              this._animate([lastKeyframe, keyframe], this.layout.transitionEffectTiming, () => {
+                this.flush();
+              });
+              lastRect = newRect;
+              lastKeyframe = keyframe;
+            } else {
+              this.flush();
+            }
             this.emit(`resize:${edgeOrCorner}:move`, offset, delta);
           },
           () => {
             delete el.dataset.resizing;
-            if (this.layout.allowTransitions) {
-              el.style.transition = '';
-            }
             this.emit('resize:left:end');
           },
         ));
@@ -290,8 +351,6 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
     bindResizingHandler(bottomEdge, 'bottom');
     bindResizingHandler(bottomLeftCorner, 'bottom-left');
     bindResizingHandler(bottomRightCorner, 'bottom-right');
-
-    this.onLayoutChange();
   }
 
   get layout () {
@@ -314,6 +373,11 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
     el.style.zIndex = String(this.priority + this.parent.zIndexBase);
   }
 
+  captureKeyframe (mutation?: CaptureKeyframeMutation | ((rect: Rect) => CaptureKeyframeMutation)): Keyframe {
+    let rect = this.rect;
+    return this.layout.captureKeyframe(rect, typeof mutation === 'function' ? mutation(rect) : mutation);
+  }
+
   flush () {
     const layout = this._layout ?? this.parent.layout;
     if (!this.bound) {
@@ -324,6 +388,26 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
 
     el.style.zIndex = String(this.priority + this.parent.zIndexBase);
     layout.renderRectToCSSStyleProperty(this.rect, el.style);
+  }
+
+  private _bindLayout (layout: RectLayout) {
+    layout.addWindow(this);
+    layout.on('update', this.onLayoutChange, this);
+    layout.on('break', this.onReLayout, this);
+
+    if (layout.allowRestore) {
+      return layout.getStoredRect(this);
+    }
+    return undefined;
+  }
+
+  private _unbindLayout (layout: RectLayout, destroy = false) {
+    if (layout.allowRestore) {
+      layout.storeRect(this, this.rect);
+    }
+    layout.off('update', this.onLayoutChange, this);
+    layout.off('break', this.onReLayout, this);
+    layout.removeWindow(this);
   }
 }
 

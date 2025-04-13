@@ -111,12 +111,12 @@ export class ConstraintGridRectLayout extends ConstraintRectLayout {
     return { x, y, width, height };
   }
 
-  initializeRect (id: number): Rect {
+  initializeRectByIndex (index: number): Rect {
     const cols = this._sizeConstraints.suggestionWidth || this._sizeConstraints.minWidth;
     const rows = this._sizeConstraints.suggestionHeight || this._sizeConstraints.minHeight;
 
-    const row = Math.floor((id * cols) / this._cols) * rows;
-    const column = ((id * cols) % this._cols);
+    const row = Math.floor((index * cols) / this._cols) * rows;
+    const column = ((index * cols) % this._cols);
 
     return {
       x: column,
