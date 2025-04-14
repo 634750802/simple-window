@@ -1,9 +1,10 @@
 {
   "name": "simple-window",
   "type": "module",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "",
   "scripts": {
+    "prepack": "rm -rf ./dist && npm run build",
     "dev": "vite",
     "build": "tsc"
   },
