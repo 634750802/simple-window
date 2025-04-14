@@ -40,7 +40,7 @@ export class RectLayout extends EventEmitter<RectLayoutEventsMap> {
   protected _activeWindows: number[] = [];
 
   public readonly transitionEffectTiming: Omit<EffectTiming, 'fill'> = {
-    duration: 200,
+    duration: 150,
     easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
   };
 

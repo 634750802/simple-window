@@ -104,7 +104,6 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
   }
 
   private _animate (keyframes: Keyframe[], effectTiming: Omit<EffectTiming, 'fill'>) {
-    console.log(keyframes[0].left, keyframes[1].left);
     if (this._pendingAnimations) {
       this._pendingAnimations[0][1] = keyframes[keyframes.length - 1];
       this._pendingAnimations[1] = effectTiming;
@@ -115,12 +114,10 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
     }
 
     if (this.bound) {
-      console.log('animate');
       const { el } = this.bound;
       const handleFinish = () => {
         this._animatingKeyframes = null;
         if (this._pendingAnimations) {
-          console.log('continue pending', this._pendingAnimations);
           const args = this._pendingAnimations;
           this._pendingAnimations = null;
           const animated = RectWindow.animateElement(el, args[0], args[1], handleFinish);
@@ -132,7 +129,6 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
         this._animatingKeyframes = null;
         this.flush();
         this.emit('animate:end', keyframes);
-        console.log('finish');
       };
 
       const animated = RectWindow.animateElement(el, keyframes, effectTiming, handleFinish);

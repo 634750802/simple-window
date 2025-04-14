@@ -45,6 +45,10 @@ document.querySelector('#add')!.addEventListener('click', () => {
   const window = collection.newWindow({
     props: undefined,
   });
+
+  window.on('animate:start', () => console.log('animate start'));
+  window.on('animate:end', () => console.log('animate end'));
+
   const div = document.createElement('div');
 
   div.classList.add(`rect-${window.id}`);
