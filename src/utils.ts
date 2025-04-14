@@ -1,5 +1,5 @@
 import type { DraggableTarget } from './draggable.js';
-import type { Vector2 } from './rect.js';
+import type { Rect, Vector2 } from './rect.js';
 import type { RectWindowVirtualBoundDOMElement } from './window.js';
 
 export function getRequiredElement (root: RectWindowVirtualBoundDOMElement, query: DraggableTarget | string): DraggableTarget | null {
@@ -31,6 +31,47 @@ export function getEventButton (event: MouseEvent | TouchEvent): number | null {
     return null;
   }
   return event.button;
+}
+
+export function optimizedObserveElementResize (element: Element, onResize: (rect: ResizeObserverEntry) => void) {
+  if (typeof ResizeObserver === 'undefined') {
+    return () => {};
+  }
+  let tick: ReturnType<typeof requestAnimationFrame> = -1;
+
+  const ro = new ResizeObserver(([entry]) => {
+    cancelAnimationFrame(tick);
+    tick = requestAnimationFrame(() => {
+      onResize(entry);
+    });
+  });
+
+  ro.observe(element);
+
+  return () => {
+    cancelAnimationFrame(tick);
+    ro.disconnect();
+  };
+}
+
+export function optimizedObserveWindowResize (onResize: () => void) {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+  let tick: ReturnType<typeof requestAnimationFrame> = -1;
+
+  const handleResize = () => {
+    cancelAnimationFrame(tick);
+    tick = requestAnimationFrame(() => {
+      onResize();
+    });
+  };
+
+  window.addEventListener('resize', handleResize);
+  return () => {
+    window.removeEventListener('resize', handleResize);
+    cancelAnimationFrame(tick);
+  };
 }
 
 function isTouchEvent (event: MouseEvent | TouchEvent): event is TouchEvent {

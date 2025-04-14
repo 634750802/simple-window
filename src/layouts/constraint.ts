@@ -1,5 +1,6 @@
 import { IDisposable } from '../draggable.js';
 import { cloneMutableEdges, type Edges, type Rect, type SizeConstraints, type Vector2 } from '../rect.js';
+import { optimizedObserveElementResize, optimizedObserveWindowResize } from '../utils.js';
 import { RectLayout } from './base.js';
 
 export interface IConstraintRectLayout {
@@ -216,13 +217,11 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
     const onResize = () => {
       this.setConstraintRect(element.getBoundingClientRect());
     };
-    const ro = new ResizeObserver(onResize);
-    ro.observe(element);
-    window.addEventListener('resize', onResize);
-    this._bound = [() => {
-      ro.disconnect();
-      window.removeEventListener('resize', onResize);
-    }];
+
+    this._bound = [
+      optimizedObserveElementResize(element, onResize),
+      optimizedObserveWindowResize(onResize),
+    ];
     onResize();
     this.emit('break');
   }
@@ -233,10 +232,7 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
       this.setConstraintRect({ x: 0, y: 0, width: window.innerWidth, height: window.innerHeight });
     };
     onResize();
-    window.addEventListener('resize', onResize);
-    this._bound = [() => {
-      window.removeEventListener('resize', onResize);
-    }];
+    this._bound = [optimizedObserveWindowResize(onResize)];
     this.emit('break');
   }
 

@@ -1,4 +1,5 @@
 import type { Rect } from '../rect.js';
+import { optimizedObserveWindowResize } from '../utils.js';
 import { RectLayout } from './base.js';
 
 export class DialogLayout extends RectLayout {
@@ -11,7 +12,7 @@ export class DialogLayout extends RectLayout {
     const onResize = () => {
       this.emit('update');
     };
-    window.addEventListener('resize', onResize, { passive: true });
+    optimizedObserveWindowResize(onResize);
   }
 
   initializeRect (): Rect {

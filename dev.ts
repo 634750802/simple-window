@@ -111,3 +111,11 @@ window.collection = collection;
 window.makeDialog = makeDialog;
 window.removeDialog = removeDialog;
 window.destroyWindow = destroyWindow;
+
+window.onresize = () => {
+  if (window.innerWidth < 800) {
+    collection.layout = grid;
+  } else {
+    collection.layout = normal;
+  }
+}

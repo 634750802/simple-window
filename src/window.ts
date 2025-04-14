@@ -1,5 +1,4 @@
 import { EventEmitter } from 'eventemitter3';
-import type { CaptureKeyframeMutation } from './animation.js';
 import { bindDraggable, type DraggableTarget, type IDisposable } from './draggable.js';
 import type { RectLayout } from './layouts/base.js';
 import { type Edges, isSameRect, makeRect, type Rect, UNINITIALIZED_RECT, type Vector2 } from './rect.js';
@@ -67,10 +66,7 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
   private bound: { el: RectWindowVirtualBoundDOMElement, disposables: IDisposable[] } | null = null;
   private _layout: RectLayout | undefined;
   private _animatingKeyframes: Keyframe[] | null = null;
-
-  public get animatingKeyframes () {
-    return this._animatingKeyframes;
-  }
+  private _pendingAnimations: [keyframes: Keyframe[], effectTiming: Omit<EffectTiming, 'fill'>] | null = null;
 
   enterEffectTiming: Omit<EffectTiming, 'fill'> = {
     duration: 250,
@@ -81,7 +77,7 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
     easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
   };
   switchLayoutEffectTiming: Omit<EffectTiming, 'fill'> = {
-    duration: 800,
+    duration: 450,
     easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
   };
 
@@ -107,14 +103,39 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
     this.onReLayout(suggestedRect, previousKeyframe);
   }
 
-  private _animate (keyframes: Keyframe[], effectTiming: Omit<EffectTiming, 'fill'>, onFinished?: () => void) {
+  private _animate (keyframes: Keyframe[], effectTiming: Omit<EffectTiming, 'fill'>) {
+    console.log(keyframes[0].left, keyframes[1].left);
+    if (this._pendingAnimations) {
+      this._pendingAnimations[0][1] = keyframes[keyframes.length - 1];
+      this._pendingAnimations[1] = effectTiming;
+      return;
+    } else if (this._animatingKeyframes) {
+      this._pendingAnimations = [[this._animatingKeyframes[this._animatingKeyframes.length - 1], keyframes[keyframes.length - 1]], effectTiming];
+      return;
+    }
+
     if (this.bound) {
+      console.log('animate');
+      const { el } = this.bound;
       const handleFinish = () => {
         this._animatingKeyframes = null;
-        onFinished?.();
+        if (this._pendingAnimations) {
+          console.log('continue pending', this._pendingAnimations);
+          const args = this._pendingAnimations;
+          this._pendingAnimations = null;
+          const animated = RectWindow.animateElement(el, args[0], args[1], handleFinish);
+          if (animated) {
+            this._animatingKeyframes = args[0];
+            return;
+          }
+        }
+        this._animatingKeyframes = null;
+        this.flush();
         this.emit('animate:end', keyframes);
+        console.log('finish');
       };
-      const animated = RectWindow.animateElement(this.bound.el, keyframes, effectTiming, handleFinish);
+
+      const animated = RectWindow.animateElement(el, keyframes, effectTiming, handleFinish);
       if (animated) {
         this._animatingKeyframes = keyframes;
         this.emit('animate:start', keyframes);
@@ -134,7 +155,7 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
     } else {
       animation.addEventListener('finish', onFinished, { once: true });
       animation.addEventListener('cancel', onFinished, { once: true });
-      return true;
+      return animation;
     }
   }
 
@@ -164,10 +185,8 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
       ...this.captureKeyframe(),
       ...toExtends,
     };
-    if (animate) {
-      this._animate([...from, to], effectTiming ?? this.switchLayoutEffectTiming, () => {
-        this.flush();
-      });
+    if (animate || this._animatingKeyframes) {
+      this._animate([...from, to], effectTiming ?? this.switchLayoutEffectTiming);
     } else {
       this.flush();
     }
@@ -178,9 +197,7 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
     from = from ?? this.captureKeyframe();
     this.rect = suggestedRect ? this.layout.fitRect(suggestedRect) : this.layout.fitRect(this.layout.initializeRect(this.id));
     const to = this.captureKeyframe();
-    this._animate([from, to], this.switchLayoutEffectTiming, () => {
-      this.flush();
-    });
+    this._animate([from, to], this.switchLayoutEffectTiming);
     this.emit('layout');
   }
 
@@ -278,9 +295,7 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
             const newRect = this.rect = this.layout.move(start, offset, offset);
             if (this.layout.allowTransitions && !isSameRect(lastRect, newRect)) {
               const keyframe = this.layout.captureKeyframe(newRect);
-              this._animate([lastKeyframe, keyframe], this.layout.transitionEffectTiming, () => {
-                this.flush();
-              });
+              this._animate([lastKeyframe, keyframe], this.layout.transitionEffectTiming);
               lastRect = newRect;
               lastKeyframe = keyframe;
             } else {
@@ -328,9 +343,7 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
             const newRect = this.rect = this.layout.resize(start, convertToResizeDeltaEdges(offset, edgeOrCorner));
             if (this.layout.allowTransitions && !isSameRect(lastRect, newRect)) {
               const keyframe = this.layout.captureKeyframe(newRect);
-              this._animate([lastKeyframe, keyframe], this.layout.transitionEffectTiming, () => {
-                this.flush();
-              });
+              this._animate([lastKeyframe, keyframe], this.layout.transitionEffectTiming);
               lastRect = newRect;
               lastKeyframe = keyframe;
             } else {
@@ -373,9 +386,8 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
     el.style.zIndex = String(this.priority + this.parent.zIndexBase);
   }
 
-  captureKeyframe (mutation?: CaptureKeyframeMutation | ((rect: Rect) => CaptureKeyframeMutation)): Keyframe {
-    let rect = this.rect;
-    return this.layout.captureKeyframe(rect, typeof mutation === 'function' ? mutation(rect) : mutation);
+  captureKeyframe (): Keyframe {
+    return this.layout.captureKeyframe(this.rect);
   }
 
   flush () {

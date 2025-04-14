@@ -1,6 +1,6 @@
 import { EventEmitter } from 'eventemitter3';
 import type { RectLayout } from './layouts/base.js';
-import { type Edges, makeRect, type Rect, UNINITIALIZED_RECT } from './rect.js';
+import { type Edges, type Rect, UNINITIALIZED_RECT } from './rect.js';
 import { RectWindow } from './window.js';
 
 export interface NewWindowOptions<Props> {
@@ -45,11 +45,14 @@ export class RectWindowCollection<Props> extends EventEmitter<RectWindowCollecti
     return this._layout;
   }
 
-  set layout (layout: RectLayout) {
+  set layout (newLayout: RectLayout) {
     const previousLayout = this._layout;
+    if (previousLayout === newLayout) {
+      return;
+    }
     this._layout.removeAllListeners();
-    this._layout = layout;
-    this.emit('update:layout', layout, previousLayout);
+    this._layout = newLayout;
+    this.emit('update:layout', newLayout, previousLayout);
   }
 
   newWindow ({ key, rect, props }: NewWindowOptions<Props>) {
