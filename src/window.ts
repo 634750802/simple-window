@@ -38,6 +38,8 @@ export interface RectWindowCollectionEventsMap<Props> {
   'drag:start': [];
   'drag:move': [Vector2, Vector2];
   'drag:end': [];
+  'resize:start': [];
+  'resize:end': [];
   'destroy': [];
   'tap': [];
   'layout': [];
@@ -329,6 +331,7 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
           () => {
             el.dataset.resizing = edgeOrCorner;
             this.emit(`resize:${edgeOrCorner}:start`);
+            this.emit('resize:start');
             start = this.rect;
             if (this.layout.allowTransitions) {
               lastRect = start;
@@ -349,7 +352,8 @@ export class RectWindow<Props> extends EventEmitter<RectWindowCollectionEventsMa
           },
           () => {
             delete el.dataset.resizing;
-            this.emit('resize:left:end');
+            this.emit(`resize:${edgeOrCorner}:end`);
+            this.emit('resize:end');
           },
         ));
       }
