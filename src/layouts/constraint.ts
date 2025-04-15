@@ -7,6 +7,8 @@ export interface IConstraintRectLayout {
   readonly hasConstraintRect: true;
 
   setConstraintRect (rect: Rect, breaking?: boolean): void;
+
+  readonly boundingElement: Element | null;
 }
 
 export interface ConstraintEdges extends Edges {
@@ -38,6 +40,7 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
   readonly sizeConstrained = true;
   protected _constraint: ConstraintEdges;
   private _bound: IDisposable[] | null = null;
+  private _boundingElement: Element | null = null;
 
   constructor (
     constraintRect: Rect | Element | WindowLike,
@@ -46,6 +49,10 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
     super();
     this._constraint = constraintRectToConstraints(getConstraintRect(constraintRect));
     this.autoBind(constraintRect);
+  }
+
+  get boundingElement (): Element | null {
+    return this._boundingElement;
   }
 
   getConstraint (): ConstraintEdges {
@@ -222,6 +229,7 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
       optimizedObserveElementResize(element, onResize),
       optimizedObserveWindowResize(onResize),
     ];
+    this._boundingElement = element;
     onResize();
     this.emit('break');
   }
@@ -241,6 +249,7 @@ export class ConstraintRectLayout extends RectLayout implements IConstraintRectL
     if (this._bound) {
       this._bound.forEach(fn => fn());
       this._bound = null;
+      this._boundingElement = null;
     }
   }
 }
